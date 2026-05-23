@@ -18,7 +18,7 @@
 <body>
   <div class="game">
     <h1>超シンプルなリズムゲーム</h1>
-    <p class="hint">Startを押して、ノーツが緑線に重なった瞬間に <strong>Space</strong> を押してね。</p>
+    <p class="hint">Startを押して、ノーツが緑線に重なった瞬間に <strong>Space</strong> または <strong>画面タップ</strong> してね。</p>
     <div id="lane">
       <div class="hit-line"></div>
     </div>
@@ -139,6 +139,12 @@
         e.preventDefault();
         hitCheck();
       }
+    });
+
+    // Mobile / touch support: tap lane or game area to hit notes
+    lane.addEventListener('pointerdown', hitCheck);
+    document.querySelector('.game').addEventListener('pointerdown', (e) => {
+      if (e.target !== startBtn) hitCheck();
     });
 
     startBtn.addEventListener('click', () => {

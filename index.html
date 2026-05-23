@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>超シンプルリズムゲーム</title>
+  <style>
+    body { font-family: sans-serif; background:#111; color:#fff; display:flex; justify-content:center; padding:24px; }
+    .game { width: min(520px, 95vw); }
+    #lane { position:relative; height:320px; border:2px solid #444; border-radius:8px; overflow:hidden; background:#1b1b1b; }
+    .hit-line { position:absolute; left:0; right:0; bottom:40px; height:4px; background:#4caf50; }
+    .note { position:absolute; left:50%; transform:translateX(-50%); width:60px; height:22px; border-radius:6px; background:#ffca28; }
+    .ui { margin-top:12px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    button { padding:8px 12px; }
+    .hint { color:#aaa; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="game">
+    <h1>超シンプルなリズムゲーム</h1>
+    <p class="hint">Startを押して、ノーツが緑線に重なった瞬間に <strong>Space</strong> を押してね。</p>
+    <div id="lane">
+      <div class="hit-line"></div>
+    </div>
+    <div class="ui">
+      <button id="startBtn">Start</button>
+      <div>Score: <span id="score">0</span></div>
+      <div>Combo: <span id="combo">0</span></div>
+      <div id="status">待機中</div>
+    </div>
+  </div>
+
+  <script>
+    const lane = document.getElementById('lane');
+    const scoreEl = document.getElementById('score');
+    const comboEl = document.getElementById('combo');
+    const statusEl = document.getElementById('status');
+    const startBtn = document.getElementById('startBtn');
+
+    const hitY = 320 - 40;
+    const speed = 220; // px/s
+    const noteTimes = [600, 1050, 1500, 1900, 2350, 2850, 3400, 3950, 4550, 5200];
+    const hitWindow = 28;
+
+    let running = false;
+    let startTime = 0;
+    let notes = [];
+    let spawned = 0;
+    let score = 0;
+    let combo = 0;
+    let rafId = null;
+
+    function reset() {
+      notes.forEach(n => n.el.remove());
+      notes = [];
+      spawned = 0;
+      score = 0;
+      combo = 0;
+      scoreEl.textContent = '0';
+      comboEl.textContent = '0';
+      statusEl.textContent = '待機中';
+    }
+
+    function spawnNote() {
+      const el = document.createElement('div');
+      el.className = 'note';
+      lane.appendChild(el);
+      notes.push({ el, y: -24, hit: false });
+    }
+
+    function update(ts) {
+      if (!running) return;
+      const elapsed = ts - startTime;
+
+      while (spawned < noteTimes.length && elapsed >= noteTimes[spawned]) {
+        spawnNote();
+        spawned++;
+      }
+
+      notes.forEach(n => {
+        if (!n.hit) n.y += speed / 60;
+        n.el.style.top = `${n.y}px`;
+      });
+
+      notes = notes.filter(n => {
+        if (n.y > 340 && !n.hit) {
+          combo = 0;
+          comboEl.textContent = combo;
+          statusEl.textContent = 'MISS';
+          n.el.remove();
+          return false;
+        }
+        if (n.hit) {
+          n.el.remove();
+          return false;
+        }
+        return true;
+      });
+
+      if (elapsed > noteTimes[noteTimes.length - 1] + 2500 && notes.length === 0) {
+        running = false;
+        statusEl.textContent = `終了！最終スコア: ${score}`;
+        cancelAnimationFrame(rafId);
+        return;
+      }
+
+      rafId = requestAnimationFrame(update);
+    }
+
+    function hitCheck() {
+      if (!running) return;
+      let best = null;
+      let bestDiff = Infinity;
+      notes.forEach(n => {
+        const diff = Math.abs((n.y + 11) - hitY);
+        if (diff < bestDiff) {
+          best = n;
+          bestDiff = diff;
+        }
+      });
+
+      if (best && bestDiff <= hitWindow) {
+        best.hit = true;
+        combo++;
+        const gained = 100 + (combo - 1) * 10;
+        score += gained;
+        scoreEl.textContent = score;
+        comboEl.textContent = combo;
+        statusEl.textContent = `GOOD +${gained}`;
+      } else {
+        combo = 0;
+        comboEl.textContent = combo;
+        statusEl.textContent = 'BAD';
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        hitCheck();
+      }
+    });
+
+    startBtn.addEventListener('click', () => {
+      reset();
+      running = true;
+      startTime = performance.now();
+      statusEl.textContent = '開始！';
+      rafId = requestAnimationFrame(update);
+    });
+  </script>
+</body>
+</html>
